@@ -127,12 +127,7 @@ if ( ! function_exists( 'ai_suite_comm_access_application' ) ) {
         $candidate_id = absint( get_post_meta( $application_id, '_application_candidate_id', true ) );
 
         // Company access
-        $is_company = false;
-        if ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_company = aisuite_user_has_role( $uid, 'aisuite_company' );
-        } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
-            $is_company = aisuite_current_user_is_company();
-        }
+        $is_company = current_user_can( 'rmax_company_access' );
         if ( $is_company ) {
             $my_company = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_company_id_for_user( $uid ) : 0;
             if ( $my_company && $company_id && $my_company === $company_id ) {
@@ -141,12 +136,7 @@ if ( ! function_exists( 'ai_suite_comm_access_application' ) ) {
         }
 
         // Candidate access
-        $is_candidate = false;
-        if ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_candidate = aisuite_user_has_role( $uid, 'aisuite_candidate' );
-        } elseif ( function_exists( 'aisuite_current_user_is_candidate' ) && (int) $uid === (int) get_current_user_id() ) {
-            $is_candidate = aisuite_current_user_is_candidate();
-        }
+        $is_candidate = current_user_can( 'rmax_candidate_access' );
         if ( $is_candidate ) {
             $my_candidate = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_candidate_id_for_user( $uid ) : 0;
             if ( $my_candidate && $candidate_id && $my_candidate === $candidate_id ) {
@@ -169,7 +159,9 @@ if ( ! function_exists( 'ai_suite_comm_verify' ) ) {
         if ( ! is_user_logged_in() ) {
             ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Autentificare necesară.', 'ai-suite' ) ) );
         }
-        check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+        if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
+            ai_suite_portal_ajax_guard( 'portal' );
+        }
     }
 }
 
@@ -185,22 +177,12 @@ if ( ! function_exists( 'ai_suite_ajax_threads_list' ) ) {
         $company_id = 0;
         $candidate_id = 0;
 
-        $is_company = false;
-        if ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_company = aisuite_user_has_role( $uid, 'aisuite_company' );
-        } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
-            $is_company = aisuite_current_user_is_company();
-        }
+        $is_company = current_user_can( 'rmax_company_access' );
         if ( $is_company ) {
             $role = 'company';
             $company_id = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_company_id_for_user( $uid ) : 0;
         } else {
-            $is_candidate = false;
-            if ( function_exists( 'aisuite_user_has_role' ) ) {
-                $is_candidate = aisuite_user_has_role( $uid, 'aisuite_candidate' );
-            } elseif ( function_exists( 'aisuite_current_user_is_candidate' ) && (int) $uid === (int) get_current_user_id() ) {
-                $is_candidate = aisuite_current_user_is_candidate();
-            }
+            $is_candidate = current_user_can( 'rmax_candidate_access' );
             if ( $is_candidate ) {
             $role = 'candidate';
             $candidate_id = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_candidate_id_for_user( $uid ) : 0;
@@ -386,22 +368,12 @@ if ( ! function_exists( 'ai_suite_ajax_interviews_list' ) ) {
         $company_id = 0;
         $candidate_id = 0;
 
-        $is_company = false;
-        if ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_company = aisuite_user_has_role( $uid, 'aisuite_company' );
-        } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
-            $is_company = aisuite_current_user_is_company();
-        }
+        $is_company = current_user_can( 'rmax_company_access' );
         if ( $is_company ) {
             $role = 'company';
             $company_id = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_company_id_for_user( $uid ) : 0;
         } else {
-            $is_candidate = false;
-            if ( function_exists( 'aisuite_user_has_role' ) ) {
-                $is_candidate = aisuite_user_has_role( $uid, 'aisuite_candidate' );
-            } elseif ( function_exists( 'aisuite_current_user_is_candidate' ) && (int) $uid === (int) get_current_user_id() ) {
-                $is_candidate = aisuite_current_user_is_candidate();
-            }
+            $is_candidate = current_user_can( 'rmax_candidate_access' );
             if ( $is_candidate ) {
                 $role = 'candidate';
                 $candidate_id = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_candidate_id_for_user( $uid ) : 0;
@@ -458,7 +430,7 @@ if ( ! function_exists( 'ai_suite_ajax_interview_create' ) ) {
     function ai_suite_ajax_interview_create() {
         ai_suite_comm_verify();
 
-        if ( ! ( function_exists( 'aisuite_current_user_is_company' ) && aisuite_current_user_is_company() ) ) {
+        if ( ! current_user_can( 'rmax_company_access' ) ) {
             ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Doar compania poate programa interviuri.', 'ai-suite' ) ) );
         }
 
@@ -558,22 +530,12 @@ if ( ! function_exists( 'ai_suite_ajax_activity_list' ) ) {
         $company_id = 0;
         $candidate_id = 0;
 
-        $is_company = false;
-        if ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_company = aisuite_user_has_role( $uid, 'aisuite_company' );
-        } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
-            $is_company = aisuite_current_user_is_company();
-        }
+        $is_company = current_user_can( 'rmax_company_access' );
         if ( $is_company ) {
             $role = 'company';
             $company_id = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_company_id_for_user( $uid ) : 0;
         } else {
-            $is_candidate = false;
-            if ( function_exists( 'aisuite_user_has_role' ) ) {
-                $is_candidate = aisuite_user_has_role( $uid, 'aisuite_candidate' );
-            } elseif ( function_exists( 'aisuite_current_user_is_candidate' ) && (int) $uid === (int) get_current_user_id() ) {
-                $is_candidate = aisuite_current_user_is_candidate();
-            }
+            $is_candidate = current_user_can( 'rmax_candidate_access' );
             if ( $is_candidate ) {
                 $role = 'candidate';
                 $candidate_id = class_exists( 'AI_Suite_Portal_Frontend' ) ? AI_Suite_Portal_Frontend::get_candidate_id_for_user( $uid ) : 0;
@@ -614,12 +576,7 @@ if ( ! function_exists( 'ai_suite_ajax_candidate_applications_list' ) ) {
     function ai_suite_ajax_candidate_applications_list() {
         ai_suite_comm_verify();
         $uid = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
-        $is_candidate = false;
-        if ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_candidate = aisuite_user_has_role( $uid, 'aisuite_candidate' );
-        } elseif ( function_exists( 'aisuite_current_user_is_candidate' ) && (int) $uid === (int) get_current_user_id() ) {
-            $is_candidate = aisuite_current_user_is_candidate();
-        }
+        $is_candidate = current_user_can( 'rmax_candidate_access' );
         if ( ! $is_candidate ) {
             ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Doar candidații pot accesa.', 'ai-suite' ) ) );
         }
