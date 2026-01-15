@@ -1,0 +1,17 @@
+
+.ais-portal-hero{
+  position:relative;
+  border-radius:18px;
+  overflow:hidden;
+  border:1px solid var(--ais-border);
+  min-height:180px;
+  background:
+    radial-gradient(900px 240px at 12% 20%, rgba(99,102,241,.28), transparent 70%),
+    radial-gradient(700px 220px at 86% 28%, rgba(34,211,238,.18), transparent 70%),
+    linear-gradient(135deg, rgba(17,24,39,.92), rgba(2,6,23,.92));
+}
+.ais-portal-hero .ais-hero-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,18,32,.86),rgba(11,18,32,.35));}
+.ais-portal-hero .ais-hero-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;gap:10px;}
+.ais-tile{display:flex;flex-direction:column;gap:10px;}
+.ais-tile .ais-tile-title{font-weight:700;}
+.ais-pill{display:inline-flex;align-items:center;border:1px solid var(--ais-border);border-radius:999px;padding:6px 10px;color:var(--ais-muted);font-size:12px;}
