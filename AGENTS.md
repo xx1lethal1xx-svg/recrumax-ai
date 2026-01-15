@@ -327,4 +327,30 @@ Nu improviza:
 
 ---
 
+## 20) Conflict Resolution Rule (MANDATORY)
+
+When resolving git merge conflicts:
+
+✅ Do NOT blindly choose "Accept both changes".
+
+Use "Accept both changes" ONLY if the two parts are complementary (e.g., one adds nonce validation and the other adds capability checks) AND they do NOT create duplicates.
+
+❌ Never keep duplicates of:
+- function declarations (fatal: cannot redeclare)
+- add_action/wp_ajax handlers (double execution)
+- class declarations
+- identical hooks/filters
+
+If both sides contain useful changes, you must MERGE them into a SINGLE clean block:
+- keep one handler
+- keep one add_action
+- combine nonce + capability checks into one guard
+- remove duplicates immediately
+
+After resolving conflicts:
+- ensure no conflict markers remain (<<<<<<< ======= >>>>>>>)
+- run full PHP lint:
+  `find . -name "*.php" -print0 | xargs -0 -n 1 php -l`
+- search for duplicate handler definitions in includes/ajax.php and portal handlers.
+
 END.
