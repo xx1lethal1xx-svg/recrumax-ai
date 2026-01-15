@@ -60,6 +60,9 @@ if ( ! class_exists( 'AI_Suite_ATS_Pro' ) ) {
             if ( ! is_user_logged_in() ) {
                 self::json_error( __( 'Neautorizat.', 'ai-suite' ), 401 );
             }
+            if ( ! current_user_can( 'read' ) ) {
+                self::json_error( __( 'Neautorizat.', 'ai-suite' ), 403 );
+            }
             $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
             if ( ! $nonce || ! wp_verify_nonce( $nonce, 'ai_suite_portal_nonce' ) ) {
                 self::json_error( __( 'Nonce invalid.', 'ai-suite' ), 403 );

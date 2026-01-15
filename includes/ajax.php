@@ -213,6 +213,9 @@ if ( ! function_exists( 'ai_suite_portal_ajax_guard' ) ) {
 		if ( ! is_user_logged_in() ) {
 			wp_send_json_error( array( 'message' => __( 'Trebuie să fii autentificat.', 'ai-suite' ) ), 401 );
 		}
+		if ( ! current_user_can( 'read' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
+		}
 		if ( 'company' === $role && ! current_user_can( 'manage_options' ) && function_exists( 'aisuite_current_user_is_company' ) && ! aisuite_current_user_is_company() ) {
 			if ( function_exists( 'aisuite_log' ) ) {
 				aisuite_log( 'warning', 'portal_ajax_403', array(
@@ -286,6 +289,9 @@ if ( ! function_exists( 'aisuite_register_portal_ats_fallback_ajax' ) ) {
 		$require_company = function() use ( $fail ) {
 			if ( ! is_user_logged_in() ) {
 				$fail( __( 'Neautorizat.', 'ai-suite' ), 401 );
+			}
+			if ( ! current_user_can( 'read' ) ) {
+				$fail( __( 'Neautorizat.', 'ai-suite' ), 403 );
 			}
 			$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 			if ( ! $nonce || ! wp_verify_nonce( $nonce, 'ai_suite_portal_nonce' ) ) {
