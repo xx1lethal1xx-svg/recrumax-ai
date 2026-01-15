@@ -625,6 +625,93 @@ public static function apply_form_shortcode( $atts = [] ) {
         }
 
         /**
+         * Saved jobs (candidate) – AJAX endpoints.
+         */
+        public static function ajax_toggle_save_job() {
+            check_ajax_referer( 'ai_suite_jobboard', 'nonce' );
+            if ( ! is_user_logged_in() ) {
+                wp_send_json_error( array( 'message' => __( 'Trebuie să fii autentificat.', 'ai-suite' ) ), 401 );
+            }
+            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'candidate' ) ) {
+                if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+                    ai_suite_portal_log_auth_failure( 'capability', array(
+                        'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+                    ) );
+                }
+                wp_send_json_error( array( 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
+            }
+
+            $job_id = isset( $_POST['job_id'] ) ? absint( wp_unslash( $_POST['job_id'] ) ) : 0;
+            if ( ! $job_id || get_post_type( $job_id ) !== 'rmax_job' ) {
+                wp_send_json_error( array( 'message' => __( 'Job invalid.', 'ai-suite' ) ), 400 );
+            }
+
+            $user_id = get_current_user_id();
+            $saved = (array) get_user_meta( $user_id, '_ai_suite_saved_jobs', true );
+            $saved = array_values( array_filter( array_map( 'absint', $saved ) ) );
+
+            $idx = array_search( $job_id, $saved, true );
+            if ( $idx !== false ) {
+                unset( $saved[ $idx ] );
+                $saved = array_values( $saved );
+                update_user_meta( $user_id, '_ai_suite_saved_jobs', $saved );
+                if ( function_exists( 'aisuite_log' ) ) {
+                    aisuite_log( 'info', 'Saved job removed', array( 'user_id' => $user_id, 'job_id' => $job_id ) );
+                }
+                wp_send_json_success( array( 'saved' => false, 'count' => count( $saved ) ) );
+            }
+
+            $saved[] = $job_id;
+            update_user_meta( $user_id, '_ai_suite_saved_jobs', $saved );
+            if ( function_exists( 'aisuite_log' ) ) {
+                aisuite_log( 'info', 'Saved job added', array( 'user_id' => $user_id, 'job_id' => $job_id ) );
+            }
+            wp_send_json_success( array( 'saved' => true, 'count' => count( $saved ) ) );
+        }
+
+        public static function ajax_get_saved_jobs() {
+            check_ajax_referer( 'ai_suite_jobboard', 'nonce' );
+            if ( ! is_user_logged_in() ) {
+                wp_send_json_error( array( 'message' => __( 'Trebuie să fii autentificat.', 'ai-suite' ) ), 401 );
+            }
+            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'candidate' ) ) {
+                if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+                    ai_suite_portal_log_auth_failure( 'capability', array(
+                        'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+                    ) );
+                }
+                wp_send_json_error( array( 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
+            }
+
+            $user_id = get_current_user_id();
+            $saved = (array) get_user_meta( $user_id, '_ai_suite_saved_jobs', true );
+            $saved = array_values( array_filter( array_map( 'absint', $saved ) ) );
+
+            if ( empty( $saved ) ) {
+                wp_send_json_success( array( 'jobs' => array() ) );
+            }
+
+            $posts = get_posts( array(
+                'post_type'      => 'rmax_job',
+                'post_status'    => 'publish',
+                'posts_per_page' => 50,
+                'post__in'       => $saved,
+                'orderby'        => 'post__in',
+            ) );
+
+            $jobs = array();
+            foreach ( (array) $posts as $post ) {
+                $jobs[] = array(
+                    'id'    => absint( $post->ID ),
+                    'title' => $post->post_title,
+                    'url'   => get_permalink( $post->ID ),
+                );
+            }
+
+            wp_send_json_success( array( 'jobs' => $jobs ) );
+        }
+
+        /**
          * Process the application form submission.
          */
         public static function handle_apply_form() {

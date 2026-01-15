@@ -43,9 +43,18 @@ if ( ! class_exists( 'AI_Suite_Job_Posting_Pro' ) ) {
             if ( ! is_user_logged_in() ) {
                 self::json_error( __( 'Neautorizat.', 'ai-suite' ), 401 );
             }
-            $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-            if ( ! $nonce || ! wp_verify_nonce( $nonce, 'ai_suite_portal_nonce' ) ) {
-                self::json_error( __( 'Nonce invalid.', 'ai-suite' ), 403 );
+            if ( function_exists( 'ai_suite_portal_require_nonce' ) ) {
+                ai_suite_portal_require_nonce( 'ai_suite_portal_nonce' );
+            } else {
+                check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+            }
+            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'company' ) ) {
+                if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+                    ai_suite_portal_log_auth_failure( 'capability', array(
+                        'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+                    ) );
+                }
+                self::json_error( __( 'Neautorizat.', 'ai-suite' ), 403 );
             }
             $uid = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
             $is_company = false;
@@ -54,7 +63,7 @@ if ( ! class_exists( 'AI_Suite_Job_Posting_Pro' ) ) {
             } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
                 $is_company = aisuite_current_user_is_company();
             }
-            if ( ! $is_company ) {
+            if ( ! $is_company && ! current_user_can( 'manage_options' ) ) {
                 self::json_error( __( 'Doar conturile de companie pot folosi acest modul.', 'ai-suite' ), 403 );
             }
             if ( ! class_exists( 'AI_Suite_Portal_Frontend' ) ) {

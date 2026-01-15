@@ -34,6 +34,31 @@ if ( ! class_exists( 'AI_Suite_ATS_Pro' ) ) {
             // Exports (CSV) – gated by plan feature "exports"
             add_action( 'wp_ajax_ai_suite_export_shortlist_csv', array( __CLASS__, 'ajax_export_shortlist_csv' ) );
             add_action( 'wp_ajax_ai_suite_export_pipeline_csv', array( __CLASS__, 'ajax_export_pipeline_csv' ) );
+            // PATCH55/56: KPI per recruiter + Saved Views + Smart Search
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_kpi_recruiters' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_kpi_recruiters', array( __CLASS__, 'ajax_kpi_recruiters' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_saved_views_get' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_saved_views_get', array( __CLASS__, 'ajax_saved_views_get' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_saved_views_save' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_saved_views_save', array( __CLASS__, 'ajax_saved_views_save' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_saved_views_delete' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_saved_views_delete', array( __CLASS__, 'ajax_saved_views_delete' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_saved_views_rename' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_saved_views_rename', array( __CLASS__, 'ajax_saved_views_rename' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_saved_views_default' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_saved_views_default', array( __CLASS__, 'ajax_saved_views_default' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_saved_views_reset' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_saved_views_reset', array( __CLASS__, 'ajax_saved_views_reset' ) );
+            }
+            if ( ! has_action( 'wp_ajax_ai_suite_ats_smart_search' ) ) {
+                add_action( 'wp_ajax_ai_suite_ats_smart_search', array( __CLASS__, 'ajax_smart_search' ) );
+            }
         }
 
         // -----------------
@@ -54,9 +79,18 @@ if ( ! class_exists( 'AI_Suite_ATS_Pro' ) ) {
             if ( ! is_user_logged_in() ) {
                 self::json_error( __( 'Neautorizat.', 'ai-suite' ), 401 );
             }
-            $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-            if ( ! $nonce || ! wp_verify_nonce( $nonce, 'ai_suite_portal_nonce' ) ) {
-                self::json_error( __( 'Nonce invalid.', 'ai-suite' ), 403 );
+            if ( function_exists( 'ai_suite_portal_require_nonce' ) ) {
+                ai_suite_portal_require_nonce( 'ai_suite_portal_nonce' );
+            } else {
+                check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+            }
+            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'company' ) ) {
+                if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+                    ai_suite_portal_log_auth_failure( 'capability', array(
+                        'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+                    ) );
+                }
+                self::json_error( __( 'Neautorizat.', 'ai-suite' ), 403 );
             }
             $uid = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
             $is_company = false;
@@ -65,7 +99,7 @@ if ( ! class_exists( 'AI_Suite_ATS_Pro' ) ) {
             } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
                 $is_company = aisuite_current_user_is_company();
             }
-            if ( ! $is_company ) {
+            if ( ! $is_company && ! current_user_can( 'manage_options' ) ) {
                 self::json_error( __( 'Doar conturile de companie pot folosi acest modul.', 'ai-suite' ), 403 );
             }
             if ( ! class_exists( 'AI_Suite_Portal_Frontend' ) ) {
@@ -81,6 +115,486 @@ if ( ! class_exists( 'AI_Suite_ATS_Pro' ) ) {
                 self::json_error( __( 'ATS este disponibil doar pe planurile Pro/Enterprise. Upgrade required.', 'ai-suite' ), 402 );
             }
             return $company_id;
+        }
+
+        private static function current_effective_user_id() {
+            if ( function_exists( 'ai_suite_portal_effective_user_id' ) ) {
+                return absint( ai_suite_portal_effective_user_id() );
+            }
+            return get_current_user_id();
+        }
+
+        private static function get_saved_views_key( $company_id ) {
+            return 'ai_suite_ats_saved_views_' . absint( $company_id );
+        }
+
+        private static function get_saved_views_default_key( $company_id ) {
+            return 'ai_suite_ats_saved_views_default_' . absint( $company_id );
+        }
+
+        private static function sanitize_saved_view_filters( $filters ) {
+            $filters = is_array( $filters ) ? $filters : array();
+            return array(
+                'jobId'       => isset( $filters['jobId'] ) ? sanitize_text_field( wp_unslash( $filters['jobId'] ) ) : '',
+                'recruiterId' => isset( $filters['recruiterId'] ) ? sanitize_text_field( wp_unslash( $filters['recruiterId'] ) ) : '',
+                'tag'         => isset( $filters['tag'] ) ? sanitize_text_field( wp_unslash( $filters['tag'] ) ) : '',
+                'mine'        => ! empty( $filters['mine'] ) ? 1 : 0,
+                'group'       => ! empty( $filters['group'] ) ? 1 : 0,
+                'swim'        => ! empty( $filters['swim'] ) ? 1 : 0,
+            );
+        }
+
+        private static function get_accept_status_keys() {
+            $statuses = function_exists( 'ai_suite_app_statuses' ) ? (array) ai_suite_app_statuses() : array();
+            $keys = array();
+            foreach ( array( 'acceptat', 'accepted', 'hired', 'offer' ) as $k ) {
+                if ( isset( $statuses[ $k ] ) ) {
+                    $keys[] = $k;
+                }
+            }
+            return $keys ? $keys : array( 'acceptat', 'accepted' );
+        }
+
+        private static function get_app_accept_time( $app_id, array $accept_keys ) {
+            $history = get_post_meta( $app_id, '_application_status_history', true );
+            if ( ! is_array( $history ) ) {
+                return 0;
+            }
+            $time = 0;
+            foreach ( $history as $entry ) {
+                if ( empty( $entry['to'] ) ) {
+                    continue;
+                }
+                $to = sanitize_key( (string) $entry['to'] );
+                if ( in_array( $to, $accept_keys, true ) ) {
+                    $time = max( $time, absint( $entry['time'] ) );
+                }
+            }
+            return $time;
+        }
+
+        private static function get_company_team_users( $company_id ) {
+            $users = array();
+            if ( function_exists( 'ai_suite_company_members_get' ) ) {
+                $rows = ai_suite_company_members_get( $company_id );
+                foreach ( (array) $rows as $row ) {
+                    if ( empty( $row['user_id'] ) || ( isset( $row['status'] ) && $row['status'] !== 'active' ) ) {
+                        continue;
+                    }
+                    $users[] = absint( $row['user_id'] );
+                }
+            }
+            if ( empty( $users ) ) {
+                $owner = absint( get_post_meta( $company_id, '_company_owner_user', true ) );
+                if ( $owner ) {
+                    $users[] = $owner;
+                }
+            }
+            return array_values( array_unique( array_filter( $users ) ) );
+        }
+
+        private static function get_team_user_label( $user_id ) {
+            $user = get_user_by( 'id', $user_id );
+            if ( ! $user ) {
+                return array( 'name' => 'User #' . absint( $user_id ), 'email' => '' );
+            }
+            $name = $user->display_name ? $user->display_name : trim( $user->user_firstname . ' ' . $user->user_lastname );
+            if ( ! $name ) {
+                $name = $user->user_email;
+            }
+            return array( 'name' => $name, 'email' => $user->user_email );
+        }
+
+        private static function maybe_log( $level, $message, $context = array() ) {
+            if ( function_exists( 'aisuite_log' ) ) {
+                aisuite_log( $level, $message, is_array( $context ) ? $context : array() );
+            }
+        }
+
+        public static function ajax_kpi_recruiters() {
+            $company_id = self::require_company_context();
+            $cache_key = 'ai_suite_kpi_recruiter_' . absint( $company_id );
+            $cached = get_transient( $cache_key );
+            if ( is_array( $cached ) ) {
+                self::json_ok( array( 'kpis' => $cached, 'cached' => true ) );
+            }
+
+            $team_ids = self::get_company_team_users( $company_id );
+            if ( empty( $team_ids ) ) {
+                self::json_ok( array( 'kpis' => array(), 'cached' => false ) );
+            }
+
+            $job_ids = self::company_job_ids( $company_id );
+            $apps = array();
+            if ( $job_ids ) {
+                $apps = get_posts( array(
+                    'post_type'      => 'rmax_application',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 300,
+                    'fields'         => 'ids',
+                    'meta_query'     => array(
+                        array(
+                            'key'     => '_application_job_id',
+                            'value'   => array_map( 'strval', array_map( 'absint', $job_ids ) ),
+                            'compare' => 'IN',
+                        ),
+                    ),
+                ) );
+            }
+
+            $statuses = function_exists( 'ai_suite_app_statuses' ) ? (array) ai_suite_app_statuses() : array();
+            $accept_keys = self::get_accept_status_keys();
+            $rows = array();
+            $map = array();
+            foreach ( $team_ids as $uid ) {
+                $label = self::get_team_user_label( $uid );
+                $rows[ $uid ] = array(
+                    'userId'       => $uid,
+                    'name'         => $label['name'],
+                    'email'        => $label['email'],
+                    'total'        => 0,
+                    'accepted'     => 0,
+                    'acceptRate'   => 0,
+                    'timeToHire'   => 0,
+                    'stageCounts'  => array(),
+                );
+                $map[ $uid ] = 0;
+            }
+
+            $time_acc = array();
+            foreach ( $team_ids as $uid ) {
+                $time_acc[ $uid ] = array( 'sum' => 0, 'count' => 0 );
+            }
+
+            foreach ( (array) $apps as $app_id ) {
+                $assigned = absint( get_post_meta( $app_id, '_application_assigned_user', true ) );
+                if ( ! $assigned || ! isset( $rows[ $assigned ] ) ) {
+                    continue;
+                }
+                $rows[ $assigned ]['total']++;
+                $status = sanitize_key( (string) get_post_meta( $app_id, '_application_status', true ) );
+                if ( $status ) {
+                    if ( ! isset( $rows[ $assigned ]['stageCounts'][ $status ] ) ) {
+                        $rows[ $assigned ]['stageCounts'][ $status ] = 0;
+                    }
+                    $rows[ $assigned ]['stageCounts'][ $status ]++;
+                }
+
+                if ( in_array( $status, $accept_keys, true ) ) {
+                    $rows[ $assigned ]['accepted']++;
+                    $accept_time = self::get_app_accept_time( $app_id, $accept_keys );
+                    if ( $accept_time ) {
+                        $app_time = get_post_time( 'U', true, $app_id );
+                        if ( $app_time ) {
+                            $time_acc[ $assigned ]['sum'] += max( 0, ( $accept_time - $app_time ) );
+                            $time_acc[ $assigned ]['count']++;
+                        }
+                    }
+                }
+            }
+
+            foreach ( $rows as $uid => &$row ) {
+                $total = max( 0, (int) $row['total'] );
+                $acc = max( 0, (int) $row['accepted'] );
+                $row['acceptRate'] = $total > 0 ? round( ( $acc / $total ) * 100, 1 ) : 0;
+                if ( ! empty( $time_acc[ $uid ]['count'] ) ) {
+                    $avg = $time_acc[ $uid ]['sum'] / $time_acc[ $uid ]['count'];
+                    $row['timeToHire'] = round( $avg / DAY_IN_SECONDS, 1 );
+                } else {
+                    $row['timeToHire'] = 0;
+                }
+                // Ensure all statuses exist for UI consistency.
+                foreach ( $statuses as $k => $label ) {
+                    if ( ! isset( $row['stageCounts'][ $k ] ) ) {
+                        $row['stageCounts'][ $k ] = 0;
+                    }
+                }
+            }
+            unset( $row );
+
+            $rows = array_values( $rows );
+            set_transient( $cache_key, $rows, 5 * MINUTE_IN_SECONDS );
+
+            self::maybe_log( 'info', 'ATS KPI recruiter loaded', array(
+                'company_id' => $company_id,
+                'user_id'    => get_current_user_id(),
+                'rows'       => count( $rows ),
+                'cached'     => false,
+            ) );
+
+            self::json_ok( array( 'kpis' => $rows, 'cached' => false ) );
+        }
+
+        public static function ajax_saved_views_get() {
+            $company_id = self::require_company_context();
+            $uid = self::current_effective_user_id();
+            $meta_key = self::get_saved_views_key( $company_id );
+            $views = get_user_meta( $uid, $meta_key, true );
+            if ( ! is_array( $views ) ) {
+                $views = array();
+            }
+            $default_id = get_user_meta( $uid, self::get_saved_views_default_key( $company_id ), true );
+            $default_id = $default_id ? sanitize_text_field( (string) $default_id ) : '';
+            self::json_ok( array( 'views' => array_values( $views ), 'default_id' => $default_id ) );
+        }
+
+        public static function ajax_saved_views_save() {
+            $company_id = self::require_company_context();
+            $uid = self::current_effective_user_id();
+            $meta_key = self::get_saved_views_key( $company_id );
+            $views = get_user_meta( $uid, $meta_key, true );
+            if ( ! is_array( $views ) ) {
+                $views = array();
+            }
+
+            $name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+            $id   = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+            $filters = isset( $_POST['filters'] ) ? (array) $_POST['filters'] : array();
+            if ( $name === '' ) {
+                self::json_error( __( 'Numele view-ului este obligatoriu.', 'ai-suite' ), 422 );
+            }
+
+            $filters = self::sanitize_saved_view_filters( $filters );
+            if ( ! $id ) {
+                $id = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : (string) ( time() . '-' . wp_rand( 1000, 9999 ) );
+            }
+
+            $views[ $id ] = array(
+                'id'        => $id,
+                'name'      => $name,
+                'filters'   => $filters,
+                'updatedAt' => time(),
+            );
+
+            if ( count( $views ) > 20 ) {
+                $views = array_slice( $views, -20, 20, true );
+            }
+
+            update_user_meta( $uid, $meta_key, $views );
+
+            self::maybe_log( 'info', 'ATS saved view saved', array(
+                'company_id' => $company_id,
+                'user_id'    => $uid,
+                'view_id'    => $id,
+            ) );
+
+            self::json_ok( array( 'views' => array_values( $views ), 'id' => $id ) );
+        }
+
+        public static function ajax_saved_views_delete() {
+            $company_id = self::require_company_context();
+            $uid = self::current_effective_user_id();
+            $meta_key = self::get_saved_views_key( $company_id );
+            $views = get_user_meta( $uid, $meta_key, true );
+            if ( ! is_array( $views ) ) {
+                $views = array();
+            }
+            $id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+            if ( ! $id || ! isset( $views[ $id ] ) ) {
+                self::json_error( __( 'View inexistent.', 'ai-suite' ), 404 );
+            }
+            unset( $views[ $id ] );
+            update_user_meta( $uid, $meta_key, $views );
+            $default_key = self::get_saved_views_default_key( $company_id );
+            $default_id = get_user_meta( $uid, $default_key, true );
+            if ( $default_id && $default_id === $id ) {
+                delete_user_meta( $uid, $default_key );
+            }
+
+            self::maybe_log( 'info', 'ATS saved view deleted', array(
+                'company_id' => $company_id,
+                'user_id'    => $uid,
+                'view_id'    => $id,
+            ) );
+
+            self::json_ok( array( 'views' => array_values( $views ) ) );
+        }
+
+        public static function ajax_saved_views_rename() {
+            $company_id = self::require_company_context();
+            $uid = self::current_effective_user_id();
+            $meta_key = self::get_saved_views_key( $company_id );
+            $views = get_user_meta( $uid, $meta_key, true );
+            if ( ! is_array( $views ) ) {
+                $views = array();
+            }
+            $id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+            $name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+            if ( ! $id || ! isset( $views[ $id ] ) ) {
+                self::json_error( __( 'View inexistent.', 'ai-suite' ), 404 );
+            }
+            if ( $name === '' ) {
+                self::json_error( __( 'Numele view-ului este obligatoriu.', 'ai-suite' ), 422 );
+            }
+            $views[ $id ]['name'] = $name;
+            $views[ $id ]['updatedAt'] = time();
+            update_user_meta( $uid, $meta_key, $views );
+
+            self::maybe_log( 'info', 'ATS saved view renamed', array(
+                'company_id' => $company_id,
+                'user_id'    => $uid,
+                'view_id'    => $id,
+            ) );
+
+            self::json_ok( array( 'views' => array_values( $views ) ) );
+        }
+
+        public static function ajax_saved_views_default() {
+            $company_id = self::require_company_context();
+            $uid = self::current_effective_user_id();
+            $meta_key = self::get_saved_views_key( $company_id );
+            $views = get_user_meta( $uid, $meta_key, true );
+            if ( ! is_array( $views ) ) {
+                $views = array();
+            }
+            $id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+            if ( ! $id || ! isset( $views[ $id ] ) ) {
+                self::json_error( __( 'View inexistent.', 'ai-suite' ), 404 );
+            }
+            update_user_meta( $uid, self::get_saved_views_default_key( $company_id ), $id );
+
+            self::maybe_log( 'info', 'ATS saved view default set', array(
+                'company_id' => $company_id,
+                'user_id'    => $uid,
+                'view_id'    => $id,
+            ) );
+
+            self::json_ok( array( 'default_id' => $id ) );
+        }
+
+        public static function ajax_saved_views_reset() {
+            $company_id = self::require_company_context();
+            $uid = self::current_effective_user_id();
+            delete_user_meta( $uid, self::get_saved_views_key( $company_id ) );
+            delete_user_meta( $uid, self::get_saved_views_default_key( $company_id ) );
+
+            self::maybe_log( 'info', 'ATS saved views reset', array(
+                'company_id' => $company_id,
+                'user_id'    => $uid,
+            ) );
+
+            self::json_ok( array( 'views' => array(), 'default_id' => '' ) );
+        }
+
+        public static function ajax_smart_search() {
+            $company_id = self::require_company_context();
+            $q = isset( $_POST['q'] ) ? sanitize_text_field( wp_unslash( $_POST['q'] ) ) : '';
+            $q = trim( $q );
+            if ( mb_strlen( $q ) < 2 ) {
+                self::json_ok( array( 'results' => array() ) );
+            }
+
+            $results = array();
+            $job_ids = self::company_job_ids( $company_id );
+
+            // Candidates
+            $cand_posts = get_posts( array(
+                'post_type'      => 'rmax_candidate',
+                'post_status'    => 'publish',
+                'posts_per_page' => 5,
+                's'              => $q,
+                'fields'         => 'ids',
+            ) );
+            foreach ( (array) $cand_posts as $cid ) {
+                $cand = self::format_candidate( $cid );
+                if ( ! $cand ) {
+                    continue;
+                }
+                $hay = strtolower( $cand['name'] . ' ' . $cand['email'] . ' ' . $cand['phone'] . ' ' . $cand['skills'] . ' ' . $cand['location'] );
+                if ( strpos( $hay, strtolower( $q ) ) === false ) {
+                    continue;
+                }
+                $results[] = array(
+                    'type'     => 'candidate',
+                    'id'       => $cand['id'],
+                    'title'    => $cand['name'],
+                    'subtitle' => $cand['location'],
+                );
+            }
+
+            // Jobs (company only)
+            if ( $job_ids ) {
+                $job_posts = get_posts( array(
+                    'post_type'      => 'rmax_job',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 5,
+                    'post__in'       => array_map( 'absint', $job_ids ),
+                    's'              => $q,
+                ) );
+                foreach ( (array) $job_posts as $job ) {
+                    $results[] = array(
+                        'type'     => 'job',
+                        'id'       => absint( $job->ID ),
+                        'title'    => $job->post_title,
+                        'subtitle' => __( 'Job companie', 'ai-suite' ),
+                    );
+                }
+            }
+
+            // Companies (admin or assigned company context)
+            $company_posts = get_posts( array(
+                'post_type'      => 'rmax_company',
+                'post_status'    => 'publish',
+                'posts_per_page' => 5,
+                's'              => $q,
+                'fields'         => 'ids',
+            ) );
+            foreach ( (array) $company_posts as $cid ) {
+                $title = get_the_title( $cid );
+                if ( ! $title ) {
+                    continue;
+                }
+                $results[] = array(
+                    'type'     => 'company',
+                    'id'       => absint( $cid ),
+                    'title'    => $title,
+                    'subtitle' => __( 'Companie', 'ai-suite' ),
+                );
+            }
+
+            // Applications (company jobs only)
+            if ( $job_ids ) {
+                $app_posts = get_posts( array(
+                    'post_type'      => 'rmax_application',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 6,
+                    'fields'         => 'ids',
+                    'meta_query'     => array(
+                        array(
+                            'key'     => '_application_job_id',
+                            'value'   => array_map( 'strval', array_map( 'absint', $job_ids ) ),
+                            'compare' => 'IN',
+                        ),
+                    ),
+                ) );
+                foreach ( (array) $app_posts as $app_id ) {
+                    $cand_id = absint( get_post_meta( $app_id, '_application_candidate_id', true ) );
+                    $cand = $cand_id ? self::format_candidate( $cand_id ) : null;
+                    $job_id = absint( get_post_meta( $app_id, '_application_job_id', true ) );
+                    $title = $cand && ! empty( $cand['name'] ) ? $cand['name'] : __( 'Aplicație', 'ai-suite' );
+                    $job_title = $job_id ? get_the_title( $job_id ) : '';
+                    $hay = strtolower( $title . ' ' . $job_title );
+                    if ( strpos( $hay, strtolower( $q ) ) === false ) {
+                        continue;
+                    }
+                    $results[] = array(
+                        'type'     => 'application',
+                        'id'       => $app_id,
+                        'jobId'    => $job_id,
+                        'title'    => $title,
+                        'subtitle' => $job_title,
+                    );
+                }
+            }
+
+            self::maybe_log( 'info', 'ATS smart search executed', array(
+                'company_id' => $company_id,
+                'user_id'    => get_current_user_id(),
+                'q'          => $q,
+                'results'    => count( $results ),
+            ) );
+
+            self::json_ok( array( 'results' => array_slice( $results, 0, 15 ) ) );
         }
 
         private static function company_job_ids( $company_id ) {

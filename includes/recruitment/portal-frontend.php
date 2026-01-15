@@ -1109,6 +1109,14 @@ echo '</section>';
             echo '<div id="ais-status-snapshot" class="ais-muted">' . esc_html__( 'Se încarcă…', 'ai-suite' ) . '</div>';
             echo '</div>';
 
+            echo '<div class="ais-card" id="ais-kpi-recruiters-card">';
+            echo '<div class="ais-card-head">';
+            echo '<h3 class="ais-card-title">' . esc_html__( 'KPI per recruiter', 'ai-suite' ) . '</h3>';
+            echo '<button type="button" class="ais-btn ais-btn-ghost" id="ais-kpi-recruiters-refresh">' . esc_html__( 'Reîncarcă', 'ai-suite' ) . '</button>';
+            echo '</div>';
+            echo '<div id="ais-kpi-recruiters" class="ais-muted">' . esc_html__( 'Se încarcă KPI-urile…', 'ai-suite' ) . '</div>';
+            echo '</div>';
+
             echo '</div>';
             echo '</section>';
 
@@ -1204,6 +1212,22 @@ echo '</div>';
             echo '<div class="ais-row" style="margin-top:10px; gap:10px; flex-wrap:wrap; align-items:center">';
             echo '<button type="button" class="ais-btn ais-btn-ghost" id="ais-ats-refresh">' . esc_html__( 'Reîncarcă', 'ai-suite' ) . '</button>';
             echo '<span class="ais-muted">' . esc_html__( 'Disponibil pe Pro/Enterprise (server-side 402).', 'ai-suite' ) . '</span>';
+            echo '</div>';
+            echo '<div class="ais-ats-tools" style="margin-top:12px">';
+            echo '<div class="ais-row" style="gap:8px; flex-wrap:wrap; align-items:center">';
+            echo '<select id="ais-ats-saved-views" class="ais-select"><option value="">' . esc_html__( 'Saved views', 'ai-suite' ) . '</option></select>';
+            echo '<input type="text" id="ais-ats-view-name" class="ais-input" placeholder="' . esc_attr__( 'Nume view...', 'ai-suite' ) . '" style="min-width:180px" />';
+            echo '<button type="button" class="ais-btn ais-btn-primary" id="ais-ats-view-save">' . esc_html__( 'Salvează view', 'ai-suite' ) . '</button>';
+            echo '<button type="button" class="ais-btn ais-btn-ghost" id="ais-ats-view-rename">' . esc_html__( 'Redenumește', 'ai-suite' ) . '</button>';
+            echo '<button type="button" class="ais-btn ais-btn-ghost" id="ais-ats-view-default">' . esc_html__( 'Setează default', 'ai-suite' ) . '</button>';
+            echo '<button type="button" class="ais-btn ais-btn-ghost" id="ais-ats-view-delete">' . esc_html__( 'Șterge view', 'ai-suite' ) . '</button>';
+            echo '<button type="button" class="ais-btn ais-btn-ghost" id="ais-ats-view-reset">' . esc_html__( 'Reset views', 'ai-suite' ) . '</button>';
+            echo '<div class="ais-smart-search">';
+            echo '<input type="text" id="ais-ats-smart-q" class="ais-input" placeholder="' . esc_attr__( 'Smart search: candidați, joburi, companii, aplicații…', 'ai-suite' ) . '" />';
+            echo '<div id="ais-ats-smart-results" class="ais-smart-results" style="display:none"></div>';
+            echo '</div>';
+            echo '</div>';
+            echo '<div class="ais-muted" id="ais-ats-view-msg" style="margin-top:6px"></div>';
             echo '</div>';
             echo '</div>';
             echo '<div id="ais-ats-board" class="ais-kanban"></div>';

@@ -109,7 +109,19 @@ if ( ! function_exists( 'ai_suite_pipeline_hidden_for_company' ) ) {
 
 // AJAX: get / save settings
 add_action( 'wp_ajax_ai_suite_pipeline_settings_get', function() {
-    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+    if ( function_exists( 'ai_suite_portal_require_nonce' ) ) {
+        ai_suite_portal_require_nonce( 'ai_suite_portal_nonce' );
+    } else {
+        check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+    }
+    if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'company' ) ) {
+        if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+            ai_suite_portal_log_auth_failure( 'capability', array(
+                'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+            ) );
+        }
+        wp_send_json( array( 'ok' => false, 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
+    }
 
     $company_id = 0;
     if ( function_exists( 'AI_Suite_Portal_Frontend' ) ) {
@@ -144,7 +156,19 @@ add_action( 'wp_ajax_ai_suite_pipeline_settings_get', function() {
 } );
 
 add_action( 'wp_ajax_ai_suite_pipeline_settings_save', function() {
-    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+    if ( function_exists( 'ai_suite_portal_require_nonce' ) ) {
+        ai_suite_portal_require_nonce( 'ai_suite_portal_nonce' );
+    } else {
+        check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+    }
+    if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'company' ) ) {
+        if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+            ai_suite_portal_log_auth_failure( 'capability', array(
+                'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+            ) );
+        }
+        wp_send_json( array( 'ok' => false, 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
+    }
 
     $labels = isset( $_POST['labels'] ) ? (array) $_POST['labels'] : array();
     $hidden = isset( $_POST['hidden'] ) ? (array) $_POST['hidden'] : array();

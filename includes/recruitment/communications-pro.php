@@ -169,7 +169,19 @@ if ( ! function_exists( 'ai_suite_comm_verify' ) ) {
         if ( ! is_user_logged_in() ) {
             ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Autentificare necesară.', 'ai-suite' ) ) );
         }
-        check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+        if ( function_exists( 'ai_suite_portal_require_nonce' ) ) {
+            ai_suite_portal_require_nonce( 'ai_suite_portal_nonce' );
+        } else {
+            check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
+        }
+        if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'portal' ) ) {
+            if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+                ai_suite_portal_log_auth_failure( 'capability', array(
+                    'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+                ) );
+            }
+            ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Neautorizat.', 'ai-suite' ) ) );
+        }
     }
 }
 
