@@ -1,77 +1,58 @@
-# TASKS.md — RecruMax / RMax AI Suite (Patch Recipes)
+# TASKS.md — RecruMax / AI Suite (Patch Recipes)
 
-Acest fișier definește task-uri standard pentru Codex (patch-style).
-Regulă: ADD-ONLY, fără rescriere masivă.
+Reguli:
+- ADD-ONLY / patch-style
+- fără rescrieri masive
+- securitate WP: nonce + current_user_can
+- admin override: manage_options
+- roluri recomandate: rmax_candidate_access / rmax_company_access / rmax_recruiter_access
+- premium enforcement server-side (402)
 
 ---
 
-## PATCH55 (Etapa 5): KPI per recruiter + Saved Views + Smart Search
-
+## PATCH56-57 (Enterprise Hardening + UX PRO)
 ### Goal
-Creștem puterea ATS / Portal Recruiter:
-- KPI per recruiter (time-to-hire, stage counts, accept rate)
-- Saved Views (filtre salvate per user)
-- Smart Search (căutare rapidă în candidați/joburi/aplicații)
+1) Role-based access pe toate portal/ATS endpoints (nu doar current_user_can('read'))
+2) Nonce unificat peste tot (zero 403)
+3) Saved Views PRO (rename/default/reset + per-user persistence)
+4) Smart Search PRO (candidate/company/job/title/tags/notes + debounce)
+5) KPI caching (transients) + invalidare la status changes
+6) Logging standardizat pentru auth/nonce fails
 
-### Scope (fișiere tipice)
-- includes/ (helpers, db queries)
-- admin/pages/ (ATS board UI)
-- assets/ (JS pentru filters + search)
-- AJAX handlers: wp_ajax_rmax_*
-
-### Acceptance Criteria
-✅ KPI se calculează corect și rapid (cu caching)  
-✅ Saved view se salvează per user + se aplică instant  
-✅ Smart search are debounce + rezultat live  
-✅ Audit log complet pentru acțiuni  
-✅ Nu există 403/nonce mismatch  
-✅ Admin are full access override
+### Acceptance
+✅ portal tabs fără 403  
+✅ saved jobs funcționează  
+✅ ATS views persistente  
+✅ search rapid + stabil  
+✅ php -l OK  
+✅ fără duplicate wp_ajax handlers  
 
 ---
 
-## FIX: Portal tabs 403 / AJAX mismatch
-
-### Symptom
-În portal apare 403 la taburi (Candidate/Company/Recruiter).
-
-### Root causes probabile
-- nonce invalid sau lipsă
-- capability check greșit
-- endpoint url greșit
-- wp_localize_script nu trimite param corect
-
-### Fix strategy
-1) Identifică exact call-ul AJAX (action)
-2) Verifică nonce + current_user_can()
-3) Unifică nonce-ul în toate portalurile
-4) Add toast + fallback message
-5) Log: rmax_log('portal_ajax_403', action + user_id + referer)
-
----
-
-## FEATURE: Admin Full Portal Access (Simulare rol)
-
+## PATCH58 — ATS Automation PRO (BestJobs++)
 ### Goal
-Admin să poată:
-- vedea portal candidate/company fără restricții
-- accesa “view as company/candidate” (impersonation safe)
+- Anti-ghosting reminders (config per stage + delay)
+- Activity timeline per candidat/aplicație (status changes, notes, actions)
+- Quick actions per stage (send email template, assign recruiter, schedule placeholder)
+- Bulk follow-up (select multiple, apply template + log)
+- Respect premium enforcement 402 (server-side)
 
-### Rules
-- doar manage_options
-- log fiecare impersonation
-- buton clar “Exit simulation”
+### Acceptance
+✅ timeline se vede în UI  
+✅ reminder rules funcționează (cron-safe)  
+✅ quick actions nu dau 403  
+✅ audit log complet  
 
 ---
 
-## QUALITY: Hardening (SAFE-LOAD + no-fatal)
+## FIX — Portal 403 / AJAX mismatch
+### Checklist rapid
+- check_ajax_referer(...) peste tot
+- current_user_can(...) corect
+- admin override
+- wp_send_json_* cu status corect
+- JS trimite nonce corect (wp_localize_script)
 
-### Goal
-Plugin nu mai blochează WP Admin niciodată:
-- safe includes
-- guard anti redeclare
-- fail-soft UI cu loguri
+---
 
-Acceptance:
-✅ plugin activează instant  
-✅ modul care crapă e izolat și logat  
-✅ portal/admin se încarcă fără fatal errors
+END.
