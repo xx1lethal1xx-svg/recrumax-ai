@@ -293,12 +293,7 @@ if ( ! function_exists( 'aisuite_register_portal_ats_fallback_ajax' ) ) {
 					$fail( __( 'Neautorizat.', 'ai-suite' ), 403 );
 				}
 				$uid = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
-				$is_company = false;
-				if ( function_exists( 'aisuite_user_has_role' ) ) {
-					$is_company = aisuite_user_has_role( $uid, 'aisuite_company' );
-				} elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
-					$is_company = aisuite_current_user_is_company();
-				}
+				$is_company = current_user_can( 'rmax_company_access' );
 				if ( ! $is_company && ! current_user_can( 'manage_options' ) ) {
 					$fail( __( 'Acces restricționat (doar companii).', 'ai-suite' ), 403 );
 				}
@@ -1039,12 +1034,7 @@ if ( ! function_exists( 'ai_suite_ajax_company_billing_save' ) ) {
         }
 
         // Capability check: company user OR admin/recruitment manager
-        $is_company_user = false;
-        if ( function_exists( 'aisuite_current_user_is_company' ) ) {
-            $is_company_user = aisuite_current_user_is_company();
-        } elseif ( function_exists( 'aisuite_user_has_role' ) ) {
-            $is_company_user = aisuite_user_has_role( $uid, 'company' );
-        }
+        $is_company_user = current_user_can( 'rmax_company_access' );
 
         if ( ! $is_company_user && ! current_user_can( 'manage_ai_suite' ) && ! ( function_exists( 'aisuite_current_user_can_manage_recruitment' ) && aisuite_current_user_can_manage_recruitment() ) ) {
             wp_send_json_error( array( 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );

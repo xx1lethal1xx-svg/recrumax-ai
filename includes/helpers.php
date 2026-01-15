@@ -103,9 +103,9 @@ function ai_suite_portal_user_can( $role = 'portal', $user_id = 0 ) {
         return true;
     }
 
-    $is_company   = function_exists( 'aisuite_current_user_is_company' ) ? aisuite_current_user_is_company() : false;
-    $is_candidate = function_exists( 'aisuite_current_user_is_candidate' ) ? aisuite_current_user_is_candidate() : false;
-    $is_recruiter = function_exists( 'aisuite_current_user_is_recruiter' ) ? aisuite_current_user_is_recruiter() : false;
+    $is_company   = current_user_can( 'rmax_company_access' );
+    $is_candidate = current_user_can( 'rmax_candidate_access' );
+    $is_recruiter = current_user_can( 'rmax_recruiter_access' );
 
     if ( $role === 'company' ) {
         return $is_company;

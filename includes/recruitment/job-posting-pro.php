@@ -57,12 +57,7 @@ if ( ! class_exists( 'AI_Suite_Job_Posting_Pro' ) ) {
                 self::json_error( __( 'Neautorizat.', 'ai-suite' ), 403 );
             }
             $uid = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
-            $is_company = false;
-            if ( function_exists( 'aisuite_user_has_role' ) ) {
-                $is_company = aisuite_user_has_role( $uid, 'aisuite_company' );
-            } elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
-                $is_company = aisuite_current_user_is_company();
-            }
+            $is_company = current_user_can( 'rmax_company_access' );
             if ( ! $is_company && ! current_user_can( 'manage_options' ) ) {
                 self::json_error( __( 'Doar conturile de companie pot folosi acest modul.', 'ai-suite' ), 403 );
             }
