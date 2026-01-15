@@ -1,0 +1,45 @@
+name: RecruMax QA
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+
+      - name: Block conflict markers
+        run: |
+          echo "== Checking for git conflict markers =="
+          if grep -R --line-number -E '<<<<<<<|=======|>>>>>>>' .; then
+            echo "❌ Conflict markers found. Resolve conflicts before merging."
+            exit 1
+          fi
+          echo "✅ No conflict markers found."
+
+      - name: PHP Syntax Check (lint)
+        run: |
+          echo "== PHP Lint =="
+          FAIL=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" >/dev/null 2>&1 || { echo "Syntax error: $file"; FAIL=1; }
+          done < <(find . -type f -name "*.php" -print0)
+          if [ "$FAIL" -eq 1 ]; then
+            echo "❌ PHP lint failed"
+            exit 1
+          fi
+          echo "✅ PHP lint OK"
+
+      - name: Structure checks
+        run: |
+          echo "== Structure Check =="
+          test -f AGENTS.md && echo "✅ AGENTS.md ok" || (echo "❌ Missing AGENTS.md" && exit 1)
+          test -f TASKS.md && echo "✅ TASKS.md ok" || (echo "❌ Missing TASKS.md" && exit 1)
