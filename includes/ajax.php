@@ -200,12 +200,31 @@ if ( ! function_exists( 'ai_suite_portal_ajax_guard' ) ) {
 		// Nonce (front-end portal).
 		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		if ( ! $nonce || ! wp_verify_nonce( $nonce, 'ai_suite_portal_nonce' ) ) {
+			if ( function_exists( 'aisuite_log' ) ) {
+				aisuite_log( 'warning', 'portal_ajax_403', array(
+					'action'   => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+					'user_id'  => get_current_user_id(),
+					'referer'  => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '',
+					'reason'   => 'nonce_invalid',
+				) );
+			}
 			wp_send_json_error( array( 'message' => __( 'Sesiune expirată (nonce invalid).', 'ai-suite' ) ), 403 );
 		}
 		if ( ! is_user_logged_in() ) {
 			wp_send_json_error( array( 'message' => __( 'Trebuie să fii autentificat.', 'ai-suite' ) ), 401 );
 		}
-		if ( 'company' === $role && function_exists( 'aisuite_current_user_is_company' ) && ! aisuite_current_user_is_company() ) {
+		if ( ! current_user_can( 'read' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
+		}
+		if ( 'company' === $role && ! current_user_can( 'manage_options' ) && function_exists( 'aisuite_current_user_is_company' ) && ! aisuite_current_user_is_company() ) {
+			if ( function_exists( 'aisuite_log' ) ) {
+				aisuite_log( 'warning', 'portal_ajax_403', array(
+					'action'   => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+					'user_id'  => get_current_user_id(),
+					'referer'  => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '',
+					'reason'   => 'capability',
+				) );
+			}
 			wp_send_json_error( array( 'message' => __( 'Acces restricționat (doar companii).', 'ai-suite' ) ), 403 );
 		}
 	}
@@ -271,6 +290,9 @@ if ( ! function_exists( 'aisuite_register_portal_ats_fallback_ajax' ) ) {
 			if ( ! is_user_logged_in() ) {
 				$fail( __( 'Neautorizat.', 'ai-suite' ), 401 );
 			}
+			if ( ! current_user_can( 'read' ) ) {
+				$fail( __( 'Neautorizat.', 'ai-suite' ), 403 );
+			}
 			$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 			if ( ! $nonce || ! wp_verify_nonce( $nonce, 'ai_suite_portal_nonce' ) ) {
 				$fail( __( 'Sesiune expirată (nonce invalid).', 'ai-suite' ), 403 );
@@ -282,7 +304,7 @@ if ( ! function_exists( 'aisuite_register_portal_ats_fallback_ajax' ) ) {
 			} elseif ( function_exists( 'aisuite_current_user_is_company' ) && (int) $uid === (int) get_current_user_id() ) {
 				$is_company = aisuite_current_user_is_company();
 			}
-			if ( ! $is_company ) {
+			if ( ! $is_company && ! current_user_can( 'manage_options' ) ) {
 				$fail( __( 'Acces restricționat (doar companii).', 'ai-suite' ), 403 );
 			}
 			$company_id = function_exists( 'ai_suite_portal_company_id' ) ? ai_suite_portal_company_id( $uid ) : 0;

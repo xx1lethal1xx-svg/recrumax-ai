@@ -169,6 +169,9 @@ if ( ! function_exists( 'ai_suite_comm_verify' ) ) {
         if ( ! is_user_logged_in() ) {
             ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Autentificare necesară.', 'ai-suite' ) ) );
         }
+        if ( ! current_user_can( 'read' ) ) {
+            ai_suite_comm_json( array( 'ok' => false, 'message' => __( 'Neautorizat.', 'ai-suite' ) ) );
+        }
         check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
     }
 }
