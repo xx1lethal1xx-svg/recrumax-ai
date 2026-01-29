@@ -103,9 +103,9 @@ function ai_suite_portal_user_can( $role = 'portal', $user_id = 0 ) {
         return true;
     }
 
-    $is_company   = current_user_can( 'rmax_company_access' );
-    $is_candidate = current_user_can( 'rmax_candidate_access' );
-    $is_recruiter = current_user_can( 'rmax_recruiter_access' );
+    $is_company   = user_can( $user_id, 'rmax_company_access' );
+    $is_candidate = user_can( $user_id, 'rmax_candidate_access' );
+    $is_recruiter = user_can( $user_id, 'rmax_recruiter_access' );
 
     if ( $role === 'company' ) {
         return $is_company;

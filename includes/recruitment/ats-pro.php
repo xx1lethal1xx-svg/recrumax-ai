@@ -83,7 +83,9 @@ if ( ! class_exists( 'AI_Suite_ATS_Pro' ) ) {
                 ai_suite_portal_ajax_guard( 'company' );
             }
             $uid = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
-            $is_company = current_user_can( 'rmax_company_access' );
+            $is_company = function_exists( 'ai_suite_portal_user_can' )
+                ? ai_suite_portal_user_can( 'company', $uid )
+                : user_can( $uid, 'rmax_company_access' );
             if ( ! $is_company && ! current_user_can( 'manage_options' ) ) {
                 self::json_error( __( 'Doar conturile de companie pot folosi acest modul.', 'ai-suite' ), 403 );
             }
