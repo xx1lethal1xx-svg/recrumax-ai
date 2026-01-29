@@ -632,7 +632,8 @@ public static function apply_form_shortcode( $atts = [] ) {
             if ( ! is_user_logged_in() ) {
                 wp_send_json_error( array( 'message' => __( 'Trebuie să fii autentificat.', 'ai-suite' ) ), 401 );
             }
-            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'candidate' ) ) {
+            $user_id = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
+            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'candidate', $user_id ) ) {
                 if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
                     ai_suite_portal_log_auth_failure( 'capability', array(
                         'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
@@ -646,7 +647,6 @@ public static function apply_form_shortcode( $atts = [] ) {
                 wp_send_json_error( array( 'message' => __( 'Job invalid.', 'ai-suite' ) ), 400 );
             }
 
-            $user_id = get_current_user_id();
             $saved = (array) get_user_meta( $user_id, '_ai_suite_saved_jobs', true );
             $saved = array_values( array_filter( array_map( 'absint', $saved ) ) );
 
@@ -674,7 +674,8 @@ public static function apply_form_shortcode( $atts = [] ) {
             if ( ! is_user_logged_in() ) {
                 wp_send_json_error( array( 'message' => __( 'Trebuie să fii autentificat.', 'ai-suite' ) ), 401 );
             }
-            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'candidate' ) ) {
+            $user_id = function_exists( 'ai_suite_portal_effective_user_id' ) ? ai_suite_portal_effective_user_id() : get_current_user_id();
+            if ( function_exists( 'ai_suite_portal_user_can' ) && ! ai_suite_portal_user_can( 'candidate', $user_id ) ) {
                 if ( function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
                     ai_suite_portal_log_auth_failure( 'capability', array(
                         'action' => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
@@ -683,7 +684,6 @@ public static function apply_form_shortcode( $atts = [] ) {
                 wp_send_json_error( array( 'message' => __( 'Neautorizat.', 'ai-suite' ) ), 403 );
             }
 
-            $user_id = get_current_user_id();
             $saved = (array) get_user_meta( $user_id, '_ai_suite_saved_jobs', true );
             $saved = array_values( array_filter( array_map( 'absint', $saved ) ) );
 
