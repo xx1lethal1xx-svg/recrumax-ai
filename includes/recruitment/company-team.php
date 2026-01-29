@@ -350,9 +350,7 @@ add_action( 'init', function() {
 
 // AJAX endpoints for portal UI.
 add_action( 'wp_ajax_ai_suite_team_list', function() {
-    if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
-        ai_suite_portal_ajax_guard( 'company' );
-    }
+    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
 
     $company_id = 0;
     if ( function_exists( 'AI_Suite_Portal_Frontend' ) && method_exists( 'AI_Suite_Portal_Frontend', 'get_company_id_for_user' ) ) {
@@ -390,9 +388,7 @@ add_action( 'wp_ajax_ai_suite_team_list', function() {
 } );
 
 add_action( 'wp_ajax_ai_suite_team_invite', function() {
-    if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
-        ai_suite_portal_ajax_guard( 'company' );
-    }
+    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
 
     $email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
     $role  = isset( $_POST['role'] ) ? sanitize_key( wp_unslash( $_POST['role'] ) ) : 'recruiter';
@@ -426,9 +422,7 @@ add_action( 'wp_ajax_ai_suite_team_invite', function() {
 } );
 
 add_action( 'wp_ajax_ai_suite_team_remove', function() {
-    if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
-        ai_suite_portal_ajax_guard( 'company' );
-    }
+    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
 
     $member_id = isset( $_POST['memberId'] ) ? absint( wp_unslash( $_POST['memberId'] ) ) : 0;
 
@@ -477,9 +471,7 @@ add_action( 'wp_ajax_ai_suite_team_remove', function() {
 } );
 
 add_action( 'wp_ajax_ai_suite_team_update_role', function() {
-    if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
-        ai_suite_portal_ajax_guard( 'company' );
-    }
+    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
 
     $member_id = isset( $_POST['memberId'] ) ? absint( wp_unslash( $_POST['memberId'] ) ) : 0;
     $role      = isset( $_POST['role'] ) ? sanitize_key( wp_unslash( $_POST['role'] ) ) : 'recruiter';

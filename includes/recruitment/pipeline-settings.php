@@ -109,9 +109,7 @@ if ( ! function_exists( 'ai_suite_pipeline_hidden_for_company' ) ) {
 
 // AJAX: get / save settings
 add_action( 'wp_ajax_ai_suite_pipeline_settings_get', function() {
-    if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
-        ai_suite_portal_ajax_guard( 'company' );
-    }
+    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
 
     $company_id = 0;
     if ( function_exists( 'AI_Suite_Portal_Frontend' ) ) {
@@ -146,9 +144,7 @@ add_action( 'wp_ajax_ai_suite_pipeline_settings_get', function() {
 } );
 
 add_action( 'wp_ajax_ai_suite_pipeline_settings_save', function() {
-    if ( function_exists( 'ai_suite_portal_ajax_guard' ) ) {
-        ai_suite_portal_ajax_guard( 'company' );
-    }
+    check_ajax_referer( 'ai_suite_portal_nonce', 'nonce' );
 
     $labels = isset( $_POST['labels'] ) ? (array) $_POST['labels'] : array();
     $hidden = isset( $_POST['hidden'] ) ? (array) $_POST['hidden'] : array();
