@@ -701,9 +701,9 @@
   })();
 
 
-  // ===========================
+  // ---------------------------
   // Auto-Patch AI (cod) - UI
-  // ===========================
+  // ---------------------------
   (function(){
     function pretty(obj){
       try { return JSON.stringify(obj, null, 2); } catch(e){ return String(obj||''); }
