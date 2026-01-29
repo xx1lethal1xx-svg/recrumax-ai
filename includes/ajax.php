@@ -1064,9 +1064,9 @@ if ( ! has_action( 'wp_ajax_ai_suite_company_billing_save', 'ai_suite_ajax_compa
 }
 
 
-// ============================
+// ----------------------------
 // ATS Email Templates (Admin + Portal)
-// ============================
+// ----------------------------
 if ( ! function_exists( 'ai_suite_ats_templates_default' ) ) {
     function ai_suite_ats_templates_default() {
         return array(
@@ -1233,5 +1233,4 @@ add_action( 'wp_ajax_ai_suite_portal_pref_set', function() {
 
 	wp_send_json_success( array( 'ok' => true ) );
 } );
-
 
