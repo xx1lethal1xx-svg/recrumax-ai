@@ -353,4 +353,14 @@ After resolving conflicts:
   `find . -name "*.php" -print0 | xargs -0 -n 1 php -l`
 - search for duplicate handler definitions in includes/ajax.php and portal handlers.
 
+Create a NEW branch from latest main (do not reuse old branches).
+Before coding, sync with main (pull/rebase).
+
+If conflicts appear:
+- DO NOT use “Accept both changes”
+- Keep main as the source of truth
+- Re-apply the intended change as a clean patch (single handler, no duplicates)
+
+Deliver a PR with 0 conflicts and GitHub Actions QA passing.
+
 END.
