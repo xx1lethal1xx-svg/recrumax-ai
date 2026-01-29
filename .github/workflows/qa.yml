@@ -1,0 +1,32 @@
+name: qa
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: Block conflict markers
+        run: |
+          echo "== Checking for git conflict markers =="
+          pattern="$(printf '<%.0s' {1..7})|$(printf '=%.0s' {1..7})|$(printf '>%.0s' {1..7})"
+          if grep -R --line-number -E "${pattern}" .; then
+            echo "Conflict markers found. Resolve conflicts before merging."
+            exit 1
+          fi
+
+      - name: PHP Syntax Check (lint)
+        run: |
+          find . -name "*.php" -print0 | xargs -0 -n 1 php -l

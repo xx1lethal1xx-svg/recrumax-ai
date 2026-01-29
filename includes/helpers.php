@@ -66,6 +66,79 @@ function aisuite_log( $level, $message, $context = array() ) {
 }
 
 /**
+ * Portal: unified nonce verification for AJAX requests.
+ *
+ * @param string $action
+ */
+if ( ! function_exists( 'ai_suite_portal_require_nonce' ) ) {
+function ai_suite_portal_require_nonce( $action = 'ai_suite_portal_nonce' ) {
+    $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+    if ( ! $nonce || ! wp_verify_nonce( $nonce, $action ) ) {
+        if ( function_exists( 'aisuite_log' ) ) {
+            aisuite_log( 'warning', 'portal_ajax_403', array(
+                'action'  => isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '',
+                'user_id' => get_current_user_id(),
+                'reason'  => 'nonce_invalid',
+            ) );
+        }
+        wp_send_json_error( array( 'message' => __( 'Sesiune expirată (nonce invalid).', 'ai-suite' ) ), 403 );
+    }
+}
+}
+
+/**
+ * Portal: role-based access helper with admin override.
+ *
+ * @param string $role company|candidate|recruiter|portal
+ * @param int    $user_id
+ * @return bool
+ */
+if ( ! function_exists( 'ai_suite_portal_user_can' ) ) {
+function ai_suite_portal_user_can( $role = 'portal', $user_id = 0 ) {
+    $user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+    if ( ! $user_id || ! is_user_logged_in() ) {
+        return false;
+    }
+    if ( current_user_can( 'manage_options' ) ) {
+        return true;
+    }
+
+    $is_company   = user_can( $user_id, 'rmax_company_access' );
+    $is_candidate = user_can( $user_id, 'rmax_candidate_access' );
+    $is_recruiter = user_can( $user_id, 'rmax_recruiter_access' );
+
+    if ( $role === 'company' ) {
+        return $is_company;
+    }
+    if ( $role === 'candidate' ) {
+        return $is_candidate;
+    }
+    if ( $role === 'recruiter' ) {
+        return $is_recruiter;
+    }
+    // portal = any portal role
+    return $is_company || $is_candidate || $is_recruiter;
+}
+}
+
+/**
+ * Portal: log authorization failures (best-effort).
+ *
+ * @param string $reason
+ * @param array  $context
+ */
+if ( ! function_exists( 'ai_suite_portal_log_auth_failure' ) ) {
+function ai_suite_portal_log_auth_failure( $reason, $context = array() ) {
+    if ( function_exists( 'aisuite_log' ) ) {
+        $ctx = is_array( $context ) ? $context : array();
+        $ctx['reason'] = (string) $reason;
+        $ctx['user_id'] = get_current_user_id();
+        aisuite_log( 'warning', 'portal_ajax_403', $ctx );
+    }
+}
+}
+
+/**
  * Record a bot run.
  *
  * @param string $bot_key Bot key.
@@ -318,4 +391,3 @@ if ( ! function_exists( 'ai_suite_portal_effective_user_id' ) ) {
         return $as_user;
     }
 }
-
