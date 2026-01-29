@@ -205,6 +205,55 @@ var msg = 'Eroare AJAX ('+action+'): ' + (status ? 'HTTP '+status : (textStatus|
   }
 
   // ---------------------------
+  // KPI per recruiter (PATCH55)
+  // ---------------------------
+  function renderRecruiterKpis($root, payload){
+    var $box = $root.find('#ais-kpi-recruiters');
+    if(!$box.length) return;
+    var rows = (payload && payload.kpis) ? payload.kpis : [];
+    var statuses = (window.AISuitePortal && AISuitePortal.statuses) ? AISuitePortal.statuses : {};
+    if(!rows.length){
+      $box.html('<div class="ais-muted">Nu există KPI-uri încă.</div>');
+      return;
+    }
+    var head = '<tr><th>Recruiter</th><th>Total</th><th>Accept rate</th><th>Time-to-hire</th>';
+    Object.keys(statuses).forEach(function(k){
+      head += '<th>'+esc(statuses[k])+'</th>';
+    });
+    head += '</tr>';
+    var body = '';
+    rows.forEach(function(r){
+      var name = r.name || r.email || ('User #'+r.userId);
+      body += '<tr>';
+      body += '<td><strong>'+esc(name)+'</strong><div class="ais-muted" style="font-size:12px">'+esc(r.email||'')+'</div></td>';
+      body += '<td>'+esc(r.total||0)+'</td>';
+      body += '<td>'+esc((r.acceptRate||0))+'%</td>';
+      body += '<td>'+esc((r.timeToHire||0))+' zile</td>';
+      Object.keys(statuses).forEach(function(k){
+        var n = (r.stageCounts && r.stageCounts[k]) ? r.stageCounts[k] : 0;
+        body += '<td>'+esc(n)+'</td>';
+      });
+      body += '</tr>';
+    });
+    $box.html('<div class="ais-tablewrap"><table class="ais-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>');
+  }
+
+  function loadRecruiterKpis($root){
+    var $box = $root.find('#ais-kpi-recruiters');
+    if(!$box.length) return;
+    $box.html('<div class="ais-muted">Se încarcă KPI-urile…</div>');
+    ajax('ai_suite_ats_kpi_recruiters', {}).done(function(res){
+      if(res && res.ok){
+        renderRecruiterKpis($root, res);
+      } else {
+        $box.html('<div class="ais-muted">'+esc((res && res.message) ? res.message : 'Eroare la încărcare.')+'</div>');
+      }
+    }).fail(function(){
+      $box.html('<div class="ais-muted">Eroare la server (AJAX).</div>');
+    });
+  }
+
+  // ---------------------------
   // Candidates
   // ---------------------------
   function renderCandidateCard(c){
@@ -732,6 +781,152 @@ function run(){
       $filterRow.append('<label class="ais-row" style="gap:6px"><input type="checkbox" id="ais-atsf-swim" /> <span>Swimlanes</span></label>');
       $wrap.before($filterRow);
     }
+
+    // Saved Views (per user)
+    var atsPrefKey = 'ats_filters_v1';
+    var viewCache = [];
+    function currentFilters(){
+      return {
+        jobId: String($root.find('#ais-ats-job').val()||''),
+        recruiterId: String($root.find('#ais-atsf-recruiter').val()||''),
+        tag: String(($root.find('#ais-atsf-tag').val()||'')).trim().toLowerCase(),
+        mine: $root.find('#ais-atsf-mine').is(':checked'),
+        group: $root.find('#ais-atsf-group').is(':checked'),
+        swim: $root.find('#ais-atsf-swim').is(':checked')
+      };
+    }
+    function applyFilters(filters){
+      filters = filters || {};
+      if(filters.jobId !== undefined) $root.find('#ais-ats-job').val(String(filters.jobId||''));
+      if(filters.recruiterId !== undefined) $root.find('#ais-atsf-recruiter').val(String(filters.recruiterId||''));
+      if(filters.tag !== undefined) $root.find('#ais-atsf-tag').val(String(filters.tag||''));
+      if(filters.mine !== undefined) $root.find('#ais-atsf-mine').prop('checked', !!filters.mine);
+      if(filters.group !== undefined) $root.find('#ais-atsf-group').prop('checked', !!filters.group);
+      if(filters.swim !== undefined) $root.find('#ais-atsf-swim').prop('checked', !!filters.swim);
+    }
+    function savePrefState(filters){
+      ajax('ai_suite_portal_pref_set', { key: atsPrefKey, value: filters });
+    }
+    function renderSavedViews(selectedId){
+      var $sel = $root.find('#ais-ats-saved-views');
+      if(!$sel.length) return;
+      var html = '<option value="">Saved views</option>';
+      viewCache.forEach(function(v){
+        html += '<option value="'+esc(v.id)+'"'+(v.id===selectedId?' selected':'')+'>'+esc(v.name||'View')+'</option>';
+      });
+      $sel.html(html);
+    }
+    function loadSavedViews(selectedId){
+      ajax('ai_suite_ats_saved_views_get', {}).done(function(res){
+        if(!res || !res.ok){ return; }
+        viewCache = res.views || [];
+        renderSavedViews(selectedId);
+      });
+    }
+    loadSavedViews();
+
+    $root.off('change.aisSavedView').on('change.aisSavedView', '#ais-ats-saved-views', function(){
+      var id = String($(this).val()||'');
+      var $msg = $root.find('#ais-ats-view-msg');
+      var v = null;
+      viewCache.forEach(function(x){ if(x.id === id){ v = x; } });
+      if(!v){ $msg.text(''); return; }
+      applyFilters(v.filters || {});
+      savePrefState(currentFilters());
+      $msg.text('View aplicat.');
+      run();
+    });
+
+    $root.off('click.aisSaveView').on('click.aisSaveView', '#ais-ats-view-save', function(){
+      var name = String($root.find('#ais-ats-view-name').val()||'').trim();
+      var $msg = $root.find('#ais-ats-view-msg');
+      if(!name){ $msg.text('Introdu un nume pentru view.'); return; }
+      var payload = { name: name, filters: currentFilters() };
+      ajax('ai_suite_ats_saved_views_save', payload).done(function(res){
+        if(res && res.ok){
+          viewCache = res.views || [];
+          renderSavedViews(res.id);
+          $msg.text('View salvat.');
+        } else {
+          $msg.text((res && res.message) ? res.message : 'Eroare la salvare.');
+        }
+      }).fail(function(){ $msg.text('Eroare la server (AJAX).'); });
+    });
+
+    $root.off('click.aisDeleteView').on('click.aisDeleteView', '#ais-ats-view-delete', function(){
+      var id = String($root.find('#ais-ats-saved-views').val()||'');
+      var $msg = $root.find('#ais-ats-view-msg');
+      if(!id){ $msg.text('Selectează un view.'); return; }
+      ajax('ai_suite_ats_saved_views_delete', { id: id }).done(function(res){
+        if(res && res.ok){
+          viewCache = res.views || [];
+          renderSavedViews('');
+          $msg.text('View șters.');
+        } else {
+          $msg.text((res && res.message) ? res.message : 'Eroare la ștergere.');
+        }
+      }).fail(function(){ $msg.text('Eroare la server (AJAX).'); });
+    });
+
+    // Smart Search
+    var smartTimer = null;
+    function renderSmartResults(items){
+      var $box = $root.find('#ais-ats-smart-results');
+      if(!$box.length) return;
+      if(!items || !items.length){
+        $box.hide().html('');
+        return;
+      }
+      var html = '';
+      items.forEach(function(it){
+        var typeLabel = it.type || 'item';
+        html += '<div class="ais-smart-item" data-type="'+esc(typeLabel)+'" data-id="'+esc(it.id||'')+'" data-job="'+esc(it.jobId||'')+'">';
+        html += '  <div><div class="ais-smart-title">'+esc(it.title||'')+'</div><div class="ais-smart-sub">'+esc(it.subtitle||'')+'</div></div>';
+        html += '  <span class="ais-smart-type">'+esc(typeLabel)+'</span>';
+        html += '</div>';
+      });
+      $box.html(html).show();
+    }
+    function runSmartSearch(){
+      var q = String($root.find('#ais-ats-smart-q').val()||'').trim();
+      if(q.length < 2){ renderSmartResults([]); return; }
+      ajax('ai_suite_ats_smart_search', { q: q }).done(function(res){
+        if(res && res.ok){
+          renderSmartResults(res.results || []);
+        }
+      });
+    }
+    $root.off('input.aisSmartSearch').on('input.aisSmartSearch', '#ais-ats-smart-q', function(){
+      clearTimeout(smartTimer);
+      smartTimer = setTimeout(runSmartSearch, 300);
+    });
+    $root.off('click.aisSmartItem').on('click.aisSmartItem', '.ais-smart-item', function(){
+      var type = $(this).data('type');
+      var id = $(this).data('id');
+      var jobId = $(this).data('job');
+      renderSmartResults([]);
+      if(type === 'candidate'){
+        setActiveTab($root, 'candidates');
+        $root.find('#ais-cand-q').val($(this).find('.ais-smart-title').text());
+        $root.find('#ais-cand-search').trigger('click');
+        return;
+      }
+      if(type === 'job'){
+        setActiveTab($root, 'ats_board');
+        $root.find('#ais-ats-job').val(String(jobId||id||'')).trigger('change');
+        return;
+      }
+      if(type === 'application'){
+        setActiveTab($root, 'ats_board');
+        if(jobId){ $root.find('#ais-ats-job').val(String(jobId)).trigger('change'); }
+        toast('info','ATS','Aplicația a fost filtrată în ATS Board.');
+      }
+    });
+    $(document).off('click.aisSmartDismiss').on('click.aisSmartDismiss', function(e){
+      if(!$(e.target).closest('.ais-smart-search').length){
+        $root.find('#ais-ats-smart-results').hide();
+      }
+    });
 
     function refreshJobsDropdown(selected){
       ajax('ai_suite_company_jobs_list', {}).done(function(res){
@@ -1508,6 +1703,14 @@ $root.on('click', '#ais-export-pipeline', function(){
         }
       });
     }
+
+    // KPI per recruiter (lazy)
+    if($root.find('#ais-kpi-recruiters').length){
+      loadRecruiterKpis($root);
+    }
+    $root.off('click.aisKpiRefresh').on('click.aisKpiRefresh', '#ais-kpi-recruiters-refresh', function(){
+      loadRecruiterKpis($root);
+    });
   }
 
   function bindCommHandlers($root){
@@ -2521,5 +2724,3 @@ $root.off('change.aisAtsEmailTpl').on('change.aisAtsEmailTpl', '#ais-ats-bulk-em
   }
 
 })(window.jQuery);
-
-
