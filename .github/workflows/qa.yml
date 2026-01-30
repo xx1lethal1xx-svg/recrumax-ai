@@ -22,7 +22,7 @@ jobs:
         run: |
           echo "== Checking for git conflict markers =="
           pattern="$(printf '<%.0s' {1..7})|$(printf '=%.0s' {1..7})|$(printf '>%.0s' {1..7})"
-          if grep -R --line-number -E "${pattern}" .; then
+          if grep -R --line-number --exclude-dir=.git -E "${pattern}" .; then
             echo "Conflict markers found. Resolve conflicts before merging."
             exit 1
           fi
